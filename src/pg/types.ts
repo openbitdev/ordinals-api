@@ -204,3 +204,8 @@ export type DbInscriptionCountPerBlock = {
   inscription_count_accum: string;
   timestamp: number;
 };
+
+export type DbInscriptionNotPaging = {
+  tx_id: string;
+  value: string | null;
+}

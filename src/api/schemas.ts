@@ -271,6 +271,15 @@ export const PaginatedResponse = <T extends TSchema>(type: T, title: string) =>
     { title }
   );
 
+export const NotPaginatedresponse = <T extends TSchema>(type: T, title: string) =>
+  Type.Object(
+    {
+      total: Type.Integer({ examples: [1] }),
+      results: Type.Array(type),
+    },
+    { title }
+  );
+  
 export const InscriptionResponse = Type.Object(
   {
     id: Type.String({
@@ -551,3 +560,11 @@ export const InscriptionsPerBlockResponse = Type.Object({
   results: Type.Array(InscriptionsPerBlock),
 });
 export type InscriptionsPerBlockResponse = Static<typeof InscriptionsPerBlockResponse>;
+
+export const GetAllInscriptionsSchema = Type.Object({
+  tx_id: Type.String({
+    examples: ['cb9de6101d86b980f6f4d59fdb8e3cebc21fe78423e7f62d73e5f74413ff6014'],
+  }),
+  value: Nullable(Type.String({ examples: ['546'] }))
+});
+export type GetAllInscriptions = Static<typeof GetAllInscriptionsSchema>;

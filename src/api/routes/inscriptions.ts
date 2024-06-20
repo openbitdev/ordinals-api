@@ -27,9 +27,11 @@ import {
   OrdinalParam,
   OutputParam,
   PaginatedResponse,
+  NotPaginatedresponse,
   RecursiveParam,
   SatoshiRaritiesParam,
   TimestampParam,
+  GetAllInscriptionsSchema,
 } from '../schemas';
 import { handleInscriptionCache, handleInscriptionTransfersCache } from '../util/cache';
 import {
@@ -40,6 +42,7 @@ import {
   parseDbInscription,
   parseDbInscriptions,
   parseInscriptionLocations,
+  parseDbAllInscription
 } from '../util/helpers';
 
 function inscriptionIdArrayParam(param: string | number) {
@@ -139,6 +142,82 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
         offset,
         total: inscriptions.total,
         results: parseDbInscriptions(inscriptions.results),
+      });
+    }
+  );
+
+  fastify.get(
+    '/all-inscriptions',
+    {
+      schema: {
+        operationId: 'getAllInscriptions',
+        summary: 'List of Inscriptions not paginated',
+        description: 'Retrieves a list of inscriptions with options to filter and sort results and not paginated',
+        tags: ['Inscriptions'],
+        querystring: Type.Object({
+          genesis_block: Type.Optional(BlockParam),
+          from_genesis_block_height: Type.Optional(BlockHeightParam),
+          to_genesis_block_height: Type.Optional(BlockHeightParam),
+          from_genesis_timestamp: Type.Optional(TimestampParam),
+          to_genesis_timestamp: Type.Optional(TimestampParam),
+          from_sat_ordinal: Type.Optional(OrdinalParam),
+          to_sat_ordinal: Type.Optional(OrdinalParam),
+          from_sat_coinbase_height: Type.Optional(BlockHeightParam),
+          to_sat_coinbase_height: Type.Optional(BlockHeightParam),
+          from_number: Type.Optional(InscriptionNumberParam),
+          to_number: Type.Optional(InscriptionNumberParam),
+          id: Type.Optional(InscriptionIdsParam),
+          number: Type.Optional(InscriptionNumbersParam),
+          output: Type.Optional(OutputParam),
+          address: Type.Optional(AddressesParam),
+          genesis_address: Type.Optional(AddressesParam),
+          mime_type: Type.Optional(MimeTypesParam),
+          rarity: Type.Optional(SatoshiRaritiesParam),
+          recursive: Type.Optional(RecursiveParam),
+          cursed: Type.Optional(CursedParam),
+          // Ordering
+          order_by: Type.Optional(OrderByParam),
+          order: Type.Optional(OrderParam),
+        }),
+        response: {
+          200: NotPaginatedresponse(GetAllInscriptionsSchema, 'Not Paginated Inscriptions Response'),
+          404: NotFoundResponse,
+        },
+      },
+    },
+    async (request, reply) => {
+      const inscriptions = await fastify.db.getAllInscriptions(
+        {
+          ...blockParam(request.query.genesis_block, 'genesis_block'),
+          ...blockParam(request.query.from_genesis_block_height, 'from_genesis_block'),
+          ...blockParam(request.query.to_genesis_block_height, 'to_genesis_block'),
+          ...blockParam(request.query.from_sat_coinbase_height, 'from_sat_coinbase'),
+          ...blockParam(request.query.to_sat_coinbase_height, 'to_sat_coinbase'),
+          from_genesis_timestamp: request.query.from_genesis_timestamp,
+          to_genesis_timestamp: request.query.to_genesis_timestamp,
+          from_sat_ordinal: bigIntParam(request.query.from_sat_ordinal),
+          to_sat_ordinal: bigIntParam(request.query.to_sat_ordinal),
+          from_number: request.query.from_number,
+          to_number: request.query.to_number,
+          genesis_id: request.query.id,
+          number: request.query.number,
+          output: request.query.output,
+          address: request.query.address,
+          genesis_address: request.query.genesis_address,
+          mime_type: request.query.mime_type,
+          sat_rarity: request.query.rarity,
+          recursive: request.query.recursive,
+          cursed: request.query.cursed,
+        },
+        {
+          order_by: request.query.order_by ?? OrderBy.genesis_block_height,
+          order: request.query.order ?? Order.desc,
+        }
+      );
+
+      await reply.send({
+        total: 10,
+        results: parseDbAllInscription(inscriptions.results),
       });
     }
   );

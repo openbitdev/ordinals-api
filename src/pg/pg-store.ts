@@ -29,6 +29,7 @@ import {
   DbInscriptionLocationChange,
   DbLocation,
   DbPaginatedResult,
+  DbInscriptionNotPaging,
 } from './types';
 import { normalizedHexString } from '../api/util/helpers';
 import { BlockCache } from './block-cache';
@@ -613,6 +614,133 @@ export class PgStore extends BasePgStore {
         `,
         sql`ORDER BY ${orderBy} LIMIT ${page.limit} OFFSET ${page.offset}`
       )}`;
+      // Do we need a filtered `COUNT(*)`? If so, try to use the pre-calculated counts we have in
+      // cached tables to speed up these queries.
+      const countType = getIndexResultCountType(filters);
+      let total = await this.counts.fromResults(countType, filters);
+      if (total === undefined) {
+        // If the count is more complex, attempt it with a separate query.
+        const count = await sql<{ total: number }[]>`${query(sql`COUNT(*) AS total`, sql``)}`;
+        total = count[0].total;
+      }
+      return {
+        total,
+        results: results ?? [],
+      };
+    });
+  }
+
+  async getAllInscriptions(
+    filters?: DbInscriptionIndexFilters,
+    sort?: DbInscriptionIndexOrder
+  ): Promise<DbPaginatedResult<DbInscriptionNotPaging>> {
+    return await this.sqlTransaction(async sql => {
+      const order = sort?.order === Order.asc ? sql`ASC` : sql`DESC`;
+      let orderBy = sql`i.number ${order}`;
+      switch (sort?.order_by) {
+        case OrderBy.genesis_block_height:
+          orderBy = sql`i.block_height ${order}, i.tx_index ${order}`;
+          break;
+        case OrderBy.ordinal:
+          orderBy = sql`i.ordinal_number ${order}`;
+          break;
+        case OrderBy.rarity:
+          orderBy = sql`ARRAY_POSITION(ARRAY['common','uncommon','rare','epic','legendary','mythic'], s.rarity) ${order}, i.number DESC`;
+          break;
+      }
+      // This function will generate a query to be used for getting results or total counts.
+      const query = (
+        columns: postgres.PendingQuery<postgres.Row[]>,
+        sorting: postgres.PendingQuery<postgres.Row[]>
+      ) => sql`
+        SELECT ${columns}
+        FROM inscriptions AS i
+        INNER JOIN current_locations AS cur ON cur.ordinal_number = i.ordinal_number
+        INNER JOIN locations AS cur_l ON cur_l.ordinal_number = cur.ordinal_number AND cur_l.block_height = cur.block_height AND cur_l.tx_index = cur.tx_index
+        INNER JOIN locations AS gen_l ON gen_l.ordinal_number = i.ordinal_number AND gen_l.block_height = i.block_height AND gen_l.tx_index = i.tx_index
+        INNER JOIN satoshis AS s ON s.ordinal_number = i.ordinal_number
+        WHERE TRUE
+          ${
+            filters?.genesis_id?.length
+              ? sql`AND i.genesis_id IN ${sql(filters.genesis_id)}`
+              : sql``
+          }
+          ${
+            filters?.genesis_block_height
+              ? sql`AND i.block_height = ${filters.genesis_block_height}`
+              : sql``
+          }
+          ${
+            filters?.genesis_block_hash
+              ? sql`AND gen_l.block_hash = ${filters.genesis_block_hash}`
+              : sql``
+          }
+          ${
+            filters?.from_genesis_block_height
+              ? sql`AND i.block_height >= ${filters.from_genesis_block_height}`
+              : sql``
+          }
+          ${
+            filters?.to_genesis_block_height
+              ? sql`AND i.block_height <= ${filters.to_genesis_block_height}`
+              : sql``
+          }
+          ${
+            filters?.from_sat_coinbase_height
+              ? sql`AND s.coinbase_height >= ${filters.from_sat_coinbase_height}`
+              : sql``
+          }
+          ${
+            filters?.to_sat_coinbase_height
+              ? sql`AND s.coinbase_height <= ${filters.to_sat_coinbase_height}`
+              : sql``
+          }
+          ${
+            filters?.from_genesis_timestamp
+              ? sql`AND i.timestamp >= to_timestamp(${filters.from_genesis_timestamp})`
+              : sql``
+          }
+          ${
+            filters?.to_genesis_timestamp
+              ? sql`AND i.timestamp <= to_timestamp(${filters.to_genesis_timestamp})`
+              : sql``
+          }
+          ${
+            filters?.from_sat_ordinal
+              ? sql`AND i.ordinal_number >= ${filters.from_sat_ordinal}`
+              : sql``
+          }
+          ${
+            filters?.to_sat_ordinal ? sql`AND i.ordinal_number <= ${filters.to_sat_ordinal}` : sql``
+          }
+          ${filters?.number?.length ? sql`AND i.number IN ${sql(filters.number)}` : sql``}
+          ${
+            filters?.from_number !== undefined ? sql`AND i.number >= ${filters.from_number}` : sql``
+          }
+          ${filters?.to_number !== undefined ? sql`AND i.number <= ${filters.to_number}` : sql``}
+          ${filters?.address?.length ? sql`AND cur.address IN ${sql(filters.address)}` : sql``}
+          ${filters?.mime_type?.length ? sql`AND i.mime_type IN ${sql(filters.mime_type)}` : sql``}
+          ${filters?.output ? sql`AND cur_l.output = ${filters.output}` : sql``}
+          ${filters?.sat_rarity?.length ? sql`AND s.rarity IN ${sql(filters.sat_rarity)}` : sql``}
+          ${filters?.sat_ordinal ? sql`AND i.ordinal_number = ${filters.sat_ordinal}` : sql``}
+          ${filters?.recursive !== undefined ? sql`AND i.recursive = ${filters.recursive}` : sql``}
+          ${filters?.cursed === true ? sql`AND i.number < 0` : sql``}
+          ${filters?.cursed === false ? sql`AND i.number >= 0` : sql``}
+          ${
+            filters?.genesis_address?.length
+              ? sql`AND i.address IN ${sql(filters.genesis_address)}`
+              : sql``
+          }
+        ${sorting}
+      `;
+      const results = await sql<{ tx_id: string; value: string }[]>`${query(
+        sql`
+        cur_l.tx_id,
+        cur_l.value
+      `,
+      sql`ORDER BY ${orderBy}`
+    )}`;
+
       // Do we need a filtered `COUNT(*)`? If so, try to use the pre-calculated counts we have in
       // cached tables to speed up these queries.
       const countType = getIndexResultCountType(filters);
