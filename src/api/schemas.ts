@@ -205,7 +205,7 @@ export const OffsetParam = Type.Integer({
 
 export const LimitParam = Type.Integer({
   minimum: 1,
-  maximum: 60,
+  maximum: 20000,
   title: 'Limit',
   description: 'Results per page',
 });
@@ -551,3 +551,11 @@ export const InscriptionsPerBlockResponse = Type.Object({
   results: Type.Array(InscriptionsPerBlock),
 });
 export type InscriptionsPerBlockResponse = Static<typeof InscriptionsPerBlockResponse>;
+
+export const GetAllInscriptionsSchema = Type.Object({
+  tx_id: Type.String({
+    examples: ['cb9de6101d86b980f6f4d59fdb8e3cebc21fe78423e7f62d73e5f74413ff6014'],
+  }),
+  value: Nullable(Type.String({ examples: ['546'] }))
+});
+export type GetAllInscriptions = Static<typeof GetAllInscriptionsSchema>;

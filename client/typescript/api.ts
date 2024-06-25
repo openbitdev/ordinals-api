@@ -709,6 +709,135 @@ export const InscriptionsApiFetchParamCreator = function (configuration?: Config
                 options: localVarRequestOptions,
             };
         },
+
+                /**
+         * Retrieves a list of inscriptions with options to filter and sort results customize data
+         * @summary Inscriptions
+         * @param {string} [genesis_block] Bitcoin block identifier (height or hash)
+         * @param {string} [from_genesis_block_height] Bitcoin block height
+         * @param {string} [to_genesis_block_height] Bitcoin block height
+         * @param {number} [from_genesis_timestamp] Block UNIX epoch timestamp (milliseconds)
+         * @param {number} [to_genesis_timestamp] Block UNIX epoch timestamp (milliseconds)
+         * @param {number} [from_sat_ordinal] Ordinal number that uniquely identifies a satoshi
+         * @param {number} [to_sat_ordinal] Ordinal number that uniquely identifies a satoshi
+         * @param {string} [from_sat_coinbase_height] Bitcoin block height
+         * @param {string} [to_sat_coinbase_height] Bitcoin block height
+         * @param {number} [from_number] Inscription number
+         * @param {number} [to_number] Inscription number
+         * @param {Array<string>} [id] Array of inscription IDs
+         * @param {Array<number>} [number] Array of inscription numbers
+         * @param {string} [output] An UTXO for a Bitcoin transaction
+         * @param {Array<string>} [address] Array of Bitcoin addresses
+         * @param {Array<string>} [mime_type] Array of inscription MIME types
+         * @param {Array<string>} [rarity] Array of satoshi rarity values
+         * @param {number} [offset] Result offset
+         * @param {number} [limit] Results per page
+         * @param {OrderBy} [order_by] Parameter to order results by
+         * @param {Order} [order] Results order
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+                getAllInscriptions(genesis_block?: string, from_genesis_block_height?: string, to_genesis_block_height?: string, from_genesis_timestamp?: number, to_genesis_timestamp?: number, from_sat_ordinal?: number, to_sat_ordinal?: number, from_sat_coinbase_height?: string, to_sat_coinbase_height?: string, from_number?: number, to_number?: number, id?: Array<string>, number?: Array<number>, output?: string, address?: Array<string>, mime_type?: Array<string>, rarity?: Array<string>, offset?: number, limit?: number, order_by?: OrderBy, order?: Order, options: any = {}): FetchArgs {
+                    const localVarPath = `/ordinals/v1/inscriptions/tx-only`;
+                    const localVarUrlObj = url.parse(localVarPath, true);
+                    const localVarRequestOptions = Object.assign({ method: 'GET' }, options);
+                    const localVarHeaderParameter = {} as any;
+                    const localVarQueryParameter = {} as any;
+        
+                    if (genesis_block !== undefined) {
+                        localVarQueryParameter['genesis_block'] = genesis_block;
+                    }
+        
+                    if (from_genesis_block_height !== undefined) {
+                        localVarQueryParameter['from_genesis_block_height'] = from_genesis_block_height;
+                    }
+        
+                    if (to_genesis_block_height !== undefined) {
+                        localVarQueryParameter['to_genesis_block_height'] = to_genesis_block_height;
+                    }
+        
+                    if (from_genesis_timestamp !== undefined) {
+                        localVarQueryParameter['from_genesis_timestamp'] = from_genesis_timestamp;
+                    }
+        
+                    if (to_genesis_timestamp !== undefined) {
+                        localVarQueryParameter['to_genesis_timestamp'] = to_genesis_timestamp;
+                    }
+        
+                    if (from_sat_ordinal !== undefined) {
+                        localVarQueryParameter['from_sat_ordinal'] = from_sat_ordinal;
+                    }
+        
+                    if (to_sat_ordinal !== undefined) {
+                        localVarQueryParameter['to_sat_ordinal'] = to_sat_ordinal;
+                    }
+        
+                    if (from_sat_coinbase_height !== undefined) {
+                        localVarQueryParameter['from_sat_coinbase_height'] = from_sat_coinbase_height;
+                    }
+        
+                    if (to_sat_coinbase_height !== undefined) {
+                        localVarQueryParameter['to_sat_coinbase_height'] = to_sat_coinbase_height;
+                    }
+        
+                    if (from_number !== undefined) {
+                        localVarQueryParameter['from_number'] = from_number;
+                    }
+        
+                    if (to_number !== undefined) {
+                        localVarQueryParameter['to_number'] = to_number;
+                    }
+        
+                    if (id) {
+                        localVarQueryParameter['id'] = id;
+                    }
+        
+                    if (number) {
+                        localVarQueryParameter['number'] = number;
+                    }
+        
+                    if (output !== undefined) {
+                        localVarQueryParameter['output'] = output;
+                    }
+        
+                    if (address) {
+                        localVarQueryParameter['address'] = address;
+                    }
+        
+                    if (mime_type) {
+                        localVarQueryParameter['mime_type'] = mime_type;
+                    }
+        
+                    if (rarity) {
+                        localVarQueryParameter['rarity'] = rarity;
+                    }
+        
+                    if (offset !== undefined) {
+                        localVarQueryParameter['offset'] = offset;
+                    }
+        
+                    if (limit !== undefined) {
+                        localVarQueryParameter['limit'] = limit;
+                    }
+        
+                    if (order_by !== undefined) {
+                        localVarQueryParameter['order_by'] = order_by;
+                    }
+        
+                    if (order !== undefined) {
+                        localVarQueryParameter['order'] = order;
+                    }
+        
+                    localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
+                    // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
+                    delete localVarUrlObj.search;
+                    localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
+        
+                    return {
+                        url: url.format(localVarUrlObj),
+                        options: localVarRequestOptions,
+                    };
+                },
     }
 };
 

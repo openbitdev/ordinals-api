@@ -29,6 +29,7 @@ import {
   DbInscriptionLocationChange,
   DbLocation,
   DbPaginatedResult,
+  DbInscriptionNotPaging
 } from './types';
 import { normalizedHexString } from '../api/util/helpers';
 import { BlockCache } from './block-cache';
@@ -629,6 +630,127 @@ export class PgStore extends BasePgStore {
         INNER JOIN locations AS gen_l ON gen_l.ordinal_number = r.sat_ordinal AND gen_l.block_height = r.genesis_block_height AND gen_l.tx_index = r.genesis_tx_index
         ORDER BY r.row_num ASC
       `;
+      return {
+        total: total ?? results[0]?.total ?? 0,
+        results: results ?? [],
+      };
+    });
+  }
+
+  async getAllInscriptions(
+    page: DbInscriptionIndexPaging,
+    filters?: DbInscriptionIndexFilters,
+    sort?: DbInscriptionIndexOrder
+  ): Promise<DbPaginatedResult<DbInscriptionNotPaging>> {
+    return await this.sqlTransaction(async sql => {
+      const order = sort?.order === Order.asc ? sql`ASC` : sql`DESC`;
+      let orderBy = sql`i.number ${order}`;
+      switch (sort?.order_by) {
+        case OrderBy.genesis_block_height:
+          orderBy = sql`i.block_height ${order}, i.tx_index ${order}`;
+          break;
+        case OrderBy.ordinal:
+          orderBy = sql`i.ordinal_number ${order}`;
+          break;
+        case OrderBy.rarity:
+          orderBy = sql`ARRAY_POSITION(ARRAY['common','uncommon','rare','epic','legendary','mythic'], s.rarity) ${order}, i.number DESC`;
+          break;
+      }
+      // Do we need a filtered `COUNT(*)`? If so, try to use the pre-calculated counts we have in
+      // cached tables to speed up these queries.
+      const countType = getIndexResultCountType(filters);
+      const total = await this.counts.fromResults(countType, filters);
+      const results = await sql<(DbInscriptionNotPaging & { total: number })[]>`
+      WITH results AS (
+        SELECT
+          i.tx_id,
+          i.value,
+          ${total === undefined ? sql`COUNT(*) OVER() AS total` : sql`0 AS total`},
+          ROW_NUMBER() OVER(ORDER BY ${orderBy}) AS row_num
+        FROM inscriptions AS i
+        WHERE TRUE
+          ${
+            filters?.genesis_id?.length
+              ? sql`AND i.genesis_id IN ${sql(filters.genesis_id)}`
+              : sql``
+          }
+          ${
+            filters?.genesis_block_height
+              ? sql`AND i.block_height = ${filters.genesis_block_height}`
+              : sql``
+          }
+          ${
+            filters?.from_genesis_block_height
+              ? sql`AND i.block_height >= ${filters.from_genesis_block_height}`
+              : sql``
+          }
+          ${
+            filters?.to_genesis_block_height
+              ? sql`AND i.block_height <= ${filters.to_genesis_block_height}`
+              : sql``
+          }
+          ${
+            filters?.from_sat_coinbase_height
+              ? sql`AND s.coinbase_height >= ${filters.from_sat_coinbase_height}`
+              : sql``
+          }
+          ${
+            filters?.to_sat_coinbase_height
+              ? sql`AND s.coinbase_height <= ${filters.to_sat_coinbase_height}`
+              : sql``
+          }
+          ${
+            filters?.from_genesis_timestamp
+              ? sql`AND i.timestamp >= to_timestamp(${filters.from_genesis_timestamp})`
+              : sql``
+          }
+          ${
+            filters?.to_genesis_timestamp
+              ? sql`AND i.timestamp <= to_timestamp(${filters.to_genesis_timestamp})`
+              : sql``
+          }
+          ${
+            filters?.from_sat_ordinal
+              ? sql`AND i.ordinal_number >= ${filters.from_sat_ordinal}`
+              : sql``
+          }
+          ${
+            filters?.to_sat_ordinal
+              ? sql`AND i.ordinal_number <= ${filters.to_sat_ordinal}`
+              : sql``
+          }
+          ${filters?.number?.length ? sql`AND i.number IN ${sql(filters.number)}` : sql``}
+          ${
+            filters?.from_number !== undefined
+              ? sql`AND i.number >= ${filters.from_number}`
+              : sql``
+          }
+          ${filters?.to_number !== undefined ? sql`AND i.number <= ${filters.to_number}` : sql``}
+          ${filters?.address?.length ? sql`AND i.address IN ${sql(filters.address)}` : sql``}
+          ${
+            filters?.mime_type?.length ? sql`AND i.mime_type IN ${sql(filters.mime_type)}` : sql``
+          }
+          ${filters?.sat_rarity?.length ? sql`AND s.rarity IN ${sql(filters.sat_rarity)}` : sql``}
+          ${filters?.sat_ordinal ? sql`AND i.ordinal_number = ${filters.sat_ordinal}` : sql``}
+          ${
+            filters?.recursive !== undefined ? sql`AND i.recursive = ${filters.recursive}` : sql``
+          }
+          ${filters?.cursed === true ? sql`AND i.number < 0` : sql``}
+          ${filters?.cursed === false ? sql`AND i.number >= 0` : sql``}
+          ${
+            filters?.genesis_address?.length
+              ? sql`AND i.address IN ${sql(filters.genesis_address)}`
+              : sql``
+          }
+          ORDER BY ${orderBy} LIMIT ${page.limit} OFFSET ${page.offset}
+      )
+      SELECT
+        r.tx_id,
+        r.value,
+        r.total
+      FROM results AS r
+      ORDER BY r.row_num ASC
+    `;    
       return {
         total: total ?? results[0]?.total ?? 0,
         results: results ?? [],

@@ -11,6 +11,7 @@ import {
   DbFullyLocatedInscriptionResult,
   DbInscriptionLocationChange,
   DbLocation,
+  DbInscriptionNotPaging
 } from '../../pg/types';
 import {
   BlockHashParamCType,
@@ -23,6 +24,7 @@ import {
   Brc20TokenResponse,
   InscriptionLocationResponse,
   InscriptionResponseType,
+  GetAllInscriptions
 } from '../schemas';
 
 export const DEFAULT_API_LIMIT = 20;
@@ -61,6 +63,13 @@ export function parseDbInscriptions(
 }
 export function parseDbInscription(item: DbFullyLocatedInscriptionResult): InscriptionResponseType {
   return parseDbInscriptions([item])[0];
+}
+
+export function parseDbAllInscription(items: DbInscriptionNotPaging[]): GetAllInscriptions[] {
+  return items.map(i => ({
+    tx_id: i.tx_id,
+    value: i.value
+  }));
 }
 
 export function parseInscriptionLocations(items: DbLocation[]): InscriptionLocationResponse[] {
