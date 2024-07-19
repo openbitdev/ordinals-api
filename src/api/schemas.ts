@@ -210,6 +210,11 @@ export const LimitParam = Type.Integer({
   description: 'Results per page',
 });
 
+export const LimitParamOnlyTx = Type.Integer({
+  ...LimitParam,
+  maximum: 20000,
+});
+
 const Brc20OperationParam = Type.Union(
   [
     Type.Literal('deploy'),
@@ -551,3 +556,11 @@ export const InscriptionsPerBlockResponse = Type.Object({
   results: Type.Array(InscriptionsPerBlock),
 });
 export type InscriptionsPerBlockResponse = Static<typeof InscriptionsPerBlockResponse>;
+
+export const GetInscriptionsOnlyTxSchema = Type.Object({
+  tx_id: Type.String({
+    examples: ['cb9de6101d86b980f6f4d59fdb8e3cebc21fe78423e7f62d73e5f74413ff6014'],
+  }),
+  value: Nullable(Type.String({ examples: ['546'] }))
+});
+export type GetInscriptionsOnlyTx = Static<typeof GetInscriptionsOnlyTxSchema>;
