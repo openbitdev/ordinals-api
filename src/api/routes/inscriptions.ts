@@ -147,10 +147,10 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
   );
 
     fastify.get(
-    '/inscriptions/tx-only',
+    '/inscriptions/only-tx',
     {
       schema: {
-        operationId: 'getAllInscriptions',
+        operationId: 'getInscriptionsOnlyTx',
         summary: 'List of Inscriptions with data customize',
         description: 'Retrieves a list of inscriptions with options to filter and sort results',
         tags: ['Inscriptions'],
@@ -221,6 +221,7 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
           order: request.query.order ?? Order.desc,
         }
       );
+
       await reply.send({
         limit,
         offset,
