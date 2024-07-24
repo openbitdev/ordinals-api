@@ -662,104 +662,25 @@ export class PgStore extends BasePgStore {
       const total = await this.counts.fromResults(countType, filters);
 
       const results = await sql<(DbInscriptionOnlyTx & { total: number })[]>`
-                  WITH results AS (
-          SELECT
-            i.ordinal_number AS sat_ordinal,
-            i.block_height AS genesis_block_height,
-            i.tx_index AS genesis_tx_index,
-            cur.tx_index,
-            cur.block_height
-          FROM inscriptions AS i
-          INNER JOIN current_locations AS cur ON cur.ordinal_number = i.ordinal_number
-          INNER JOIN satoshis AS s ON s.ordinal_number = i.ordinal_number
-          WHERE TRUE
-            ${
-              filters?.genesis_id?.length
-                ? sql`AND i.genesis_id IN ${sql(filters.genesis_id)}`
-                : sql``
-            }
-            ${
-              filters?.genesis_block_height
-                ? sql`AND i.block_height = ${filters.genesis_block_height}`
-                : sql``
-            }
-            ${
-              filters?.genesis_block_hash
-                ? sql`AND i.block_hash = ${filters.genesis_block_hash}`
-                : sql``
-            }
-            ${
-              filters?.from_genesis_block_height
-                ? sql`AND i.block_height >= ${filters.from_genesis_block_height}`
-                : sql``
-            }
-            ${
-              filters?.to_genesis_block_height
-                ? sql`AND i.block_height <= ${filters.to_genesis_block_height}`
-                : sql``
-            }
-            ${
-              filters?.from_sat_coinbase_height
-                ? sql`AND s.coinbase_height >= ${filters.from_sat_coinbase_height}`
-                : sql``
-            }
-            ${
-              filters?.to_sat_coinbase_height
-                ? sql`AND s.coinbase_height <= ${filters.to_sat_coinbase_height}`
-                : sql``
-            }
-            ${
-              filters?.from_genesis_timestamp
-                ? sql`AND i.timestamp >= to_timestamp(${filters.from_genesis_timestamp})`
-                : sql``
-            }
-            ${
-              filters?.to_genesis_timestamp
-                ? sql`AND i.timestamp <= to_timestamp(${filters.to_genesis_timestamp})`
-                : sql``
-            }
-            ${
-              filters?.from_sat_ordinal
-                ? sql`AND i.ordinal_number >= ${filters.from_sat_ordinal}`
-                : sql``
-            }
-            ${
-              filters?.to_sat_ordinal
-                ? sql`AND i.ordinal_number <= ${filters.to_sat_ordinal}`
-                : sql``
-            }
-            ${filters?.number?.length ? sql`AND i.number IN ${sql(filters.number)}` : sql``}
-            ${
-              filters?.from_number !== undefined
-                ? sql`AND i.number >= ${filters.from_number}`
-                : sql``
-            }
-            ${filters?.to_number !== undefined ? sql`AND i.number <= ${filters.to_number}` : sql``}
-            ${filters?.address?.length ? sql`AND cur.address IN ${sql(filters.address)}` : sql``}
-            ${
-              filters?.mime_type?.length ? sql`AND i.mime_type IN ${sql(filters.mime_type)}` : sql``
-            }
-            ${filters?.output ? sql`AND cur.output = ${filters.output}` : sql``}
-            ${filters?.sat_rarity?.length ? sql`AND s.rarity IN ${sql(filters.sat_rarity)}` : sql``}
-            ${filters?.sat_ordinal ? sql`AND i.ordinal_number = ${filters.sat_ordinal}` : sql``}
-            ${
-              filters?.recursive !== undefined ? sql`AND i.recursive = ${filters.recursive}` : sql``
-            }
-            ${filters?.cursed === true ? sql`AND i.number < 0` : sql``}
-            ${filters?.cursed === false ? sql`AND i.number >= 0` : sql``}
-            ${
-              filters?.genesis_address?.length
-                ? sql`AND i.address IN ${sql(filters.genesis_address)}`
-                : sql``
-            }
-            ORDER BY ${orderBy} LIMIT ${page.limit} OFFSET ${page.offset}
-          )
+       WITH results AS (
         SELECT
-          cur_l.tx_id,
-          cur_l.value
+          i.ordinal_number AS sat_ordinal,
+          cur.tx_index,
+          cur.block_height
+        FROM inscriptions AS i
+        INNER JOIN current_locations AS cur ON cur.ordinal_number = i.ordinal_number
+        WHERE cur.address IN ${sql(filters?.address || [])}
+        ORDER BY ${orderBy}
+        LIMIT ${page.limit} OFFSET ${page.offset}
+        )
+        SELECT
+        cur_l.tx_id,
+        cur_l.value
         FROM results AS r
-        INNER JOIN locations AS cur_l ON cur_l.ordinal_number = r.sat_ordinal AND cur_l.block_height = r.block_height AND cur_l.tx_index = r.tx_index
-        INNER JOIN locations AS gen_l ON gen_l.ordinal_number = r.sat_ordinal AND gen_l.block_height = r.genesis_block_height AND gen_l.tx_index = r.genesis_tx_index
+        INNER JOIN locations AS cur_l
+        ON cur_l.ordinal_number = r.sat_ordinal
+        AND cur_l.block_height = r.block_height
+        AND cur_l.tx_index = r.tx_index
       `;
       return {
         total: total ?? results[0]?.total ?? 0,
